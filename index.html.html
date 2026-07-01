@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pioneer Group — Hanger Details</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#232019;
+    --kraft:#e7dcc5;
+    --kraft-dark:#d8c9a6;
+    --paper:#f7f2e6;
+    --line:#c9b98f;
+    --orange:#d5541a;
+    --orange-dark:#a6410f;
+    --green-ok:#3f6b3a;
+    --mono: 'Courier New', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: 'Segoe UI', Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background: repeating-linear-gradient(135deg, #0a1830 0px, #0a1830 2px, #0f2148 2px, #0f2148 4px);
+    font-family: var(--sans);
+    color:var(--ink);
+    padding:28px 16px 60px;
+  }
+  .wrap{ max-width:1160px; margin:0 auto; }
+  header.top{
+    display:flex; align-items:baseline; justify-content:space-between;
+    color:#e9eef7; margin-bottom:22px; flex-wrap:wrap; gap:8px;
+  }
+  header.top h1{
+    font-family: var(--mono); font-size:20px; letter-spacing:2px;
+    text-transform:uppercase; margin:0; font-weight:700;
+  }
+  header.top .sub{ font-family: var(--mono); font-size:12px; color:#8fa3c9; letter-spacing:1px; }
+
+  .status-bar{
+    font-family:var(--mono); font-size:11.5px; color:#8fa3c9;
+    margin:-10px 0 18px; letter-spacing:.5px;
+  }
+  .status-bar b{color:#e9eef7;}
+
+  .grid{ display:grid; grid-template-columns: 1.1fr 1fr; gap:22px; }
+  @media (max-width:820px){ .grid{grid-template-columns:1fr;} }
+
+  .panel{
+    background:var(--paper); border:1px solid var(--line); border-radius:4px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  }
+  .panel-head{
+    padding:12px 16px; border-bottom:1px dashed var(--line);
+    font-family: var(--mono); font-size:12px; letter-spacing:2px; text-transform:uppercase;
+    color:#6b6148; display:flex; justify-content:space-between; align-items:center;
+  }
+  .panel-body{padding:16px;}
+
+  .lookup-row{
+    display:flex; gap:8px; margin-bottom:14px; padding-bottom:14px;
+    border-bottom:1px dashed var(--line);
+  }
+  .lookup-row input{
+    flex:1; font-family:var(--mono); font-size:14px; padding:9px 10px;
+    border:1px solid var(--line); border-radius:3px; background:#fffdf8; color:var(--ink);
+  }
+  .lookup-row input:focus{ outline:2px solid var(--orange); outline-offset:1px; }
+  .lookup-btn{
+    background:var(--ink); color:#f1e9d6; border:none; font-family:var(--mono);
+    font-size:12px; letter-spacing:1px; text-transform:uppercase; padding:0 14px;
+    border-radius:3px; cursor:pointer;
+  }
+  .lookup-btn:hover{ background:#3a352b; }
+  .lookup-hint{ font-family:var(--mono); font-size:10.5px; color:#8a7a52; margin:-8px 0 12px; }
+  .lookup-hint.found{ color:var(--green-ok); }
+  .lookup-hint.new{ color:var(--orange-dark); }
+
+  .field-row{
+    display:grid; grid-template-columns: 1fr 1.4fr auto; gap:8px;
+    align-items:center; margin-bottom:8px;
+  }
+  .field-row.locked{ grid-template-columns:1fr 1.4fr 24px; }
+  .field-row label, .field-row input.key-input{
+    font-family: var(--mono); font-size:12px; letter-spacing:.5px; color:#5c5340;
+    text-transform:uppercase; padding:8px 6px;
+  }
+  .field-row input.key-input{
+    background:transparent; border:none; border-bottom:1px dotted var(--line); width:100%;
+  }
+  .field-row input.val-input{
+    font-family: var(--sans); font-size:14px; padding:8px 10px; border:1px solid var(--line);
+    border-radius:3px; background:#fffdf8; color:var(--ink); width:100%;
+  }
+  .field-row input.val-input:focus, .field-row input.key-input:focus{
+    outline:2px solid var(--orange); outline-offset:1px;
+  }
+  .rm-btn{
+    background:none; border:none; color:#a08f6a; font-size:17px; cursor:pointer;
+    line-height:1; padding:4px; width:24px;
+  }
+  .rm-btn:hover{ color:var(--orange-dark); }
+  .rm-btn:focus-visible, .add-btn:focus-visible, .gen-btn:focus-visible,
+  .reset-btn:focus-visible, .lookup-btn:focus-visible{ outline:2px solid var(--orange); outline-offset:2px; }
+
+  .add-btn{
+    margin-top:6px; width:100%; background:transparent; border:1.5px dashed var(--line);
+    color:#6b6148; font-family: var(--mono); font-size:12px; letter-spacing:1.5px;
+    text-transform:uppercase; padding:10px; border-radius:3px; cursor:pointer;
+    transition: border-color .15s, color .15s;
+  }
+  .add-btn:hover{ border-color:var(--orange); color:var(--orange-dark); }
+
+  .action-row{ display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+  .gen-btn{
+    flex:1; min-width:160px; background:var(--orange); color:#fff8ee; border:none;
+    font-family:var(--mono); font-weight:700; letter-spacing:2px; text-transform:uppercase;
+    font-size:13px; padding:13px; border-radius:3px; cursor:pointer; box-shadow: 0 3px 0 var(--orange-dark);
+  }
+  .gen-btn:hover{ filter:brightness(1.05); }
+  .gen-btn:active{ transform:translateY(2px); box-shadow:none; }
+  .reset-btn{
+    background:transparent; border:1px solid var(--line); color:#6b6148; font-family:var(--mono);
+    letter-spacing:1.5px; text-transform:uppercase; font-size:12px; padding:13px 16px;
+    border-radius:3px; cursor:pointer;
+  }
+  .reset-btn:hover{ border-color:var(--orange-dark); color:var(--orange-dark); }
+  .save-msg{
+    font-family:var(--mono); font-size:11.5px; letter-spacing:.5px; margin-top:10px;
+    color:var(--green-ok); min-height:14px;
+  }
+  .save-msg.err{ color:var(--orange-dark); }
+
+  /* --- TAG PREVIEW --- */
+  .tag-stage{ display:flex; justify-content:center; padding:26px 10px 10px; }
+  .tag{
+    position:relative; width:270px; background:var(--kraft); border:1px solid #b7a578;
+    border-radius:10px; padding:18px 16px 20px; box-shadow: 0 10px 20px rgba(0,0,0,.3);
+    background-image:
+      radial-gradient(circle at 20% 15%, rgba(255,255,255,.15), transparent 40%),
+      repeating-linear-gradient(0deg, rgba(120,105,70,.05) 0px, transparent 2px, transparent 4px);
+  }
+  .tag::before{
+    content:""; position:absolute; top:-9px; left:50%; transform:translateX(-50%);
+    width:18px; height:18px; background:#221f19; border-radius:50%;
+    box-shadow: inset 0 0 0 3px var(--kraft-dark), 0 0 0 3px #b7a578;
+  }
+  .tag .string{
+    position:absolute; top:-30px; left:50%; transform:translateX(-50%); width:2px; height:24px;
+    background: repeating-linear-gradient(0deg,#8a7a52 0 4px, #6f6140 4px 8px);
+  }
+  .tag .brand{
+    text-align:center; font-family:var(--mono); font-size:10.5px; letter-spacing:3px;
+    text-transform:uppercase; color:#6b5f3f; border-bottom:1px dashed #b7a578;
+    padding-bottom:8px; margin-bottom:10px;
+  }
+  .qr-holder{
+    display:flex; justify-content:center; padding:8px; background:#fffdf7;
+    border:1px solid #b7a578; margin-bottom:10px; min-height:150px; align-items:center;
+  }
+  .qr-holder img, .qr-holder canvas{ display:block; }
+  .qr-placeholder{
+    font-family:var(--mono); font-size:11px; color:#b3a888; text-align:center;
+    letter-spacing:1px; padding:20px 6px;
+  }
+  .tag-data{ font-family:var(--mono); font-size:11.5px; line-height:1.55; }
+  .tag-data .row{ display:flex; justify-content:space-between; gap:8px; border-bottom:1px dotted #b7a578; padding:2px 0; }
+  .tag-data .row .k{ color:#6b5f3f; text-transform:uppercase; white-space:nowrap; }
+  .tag-data .row .v{ color:#241f14; font-weight:700; text-align:right; word-break:break-word; }
+  .tag-footer{ text-align:center; margin-top:10px; font-family:var(--mono); font-size:9.5px; color:#8a7a52; letter-spacing:2px; }
+  .dl-row{ display:flex; justify-content:center; margin-top:14px; }
+  .dl-btn{
+    background:transparent; border:1px solid var(--line); color:#3a4a6b; font-family:var(--mono);
+    font-size:11.5px; letter-spacing:1.5px; text-transform:uppercase; padding:9px 18px;
+    border-radius:3px; cursor:pointer; display:none;
+  }
+  .dl-btn.show{ display:inline-block; }
+  .dl-btn:hover{ border-color:var(--orange); color:var(--orange); }
+
+  #printArea{ display:none; }
+  @media print{
+    body *{ visibility:hidden; }
+    #printArea, #printArea *{ visibility:visible; }
+    #printArea{
+      display:block; position:absolute; top:0; left:0; width:100%;
+      background:#fff; padding:20px;
+    }
+    #printArea .tag{ box-shadow:none; margin:0 auto; }
+  }
+
+  /* --- RECORDS BROWSER --- */
+  .records-panel{ margin-top:20px; }
+  .excel-row{ display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+  .excel-btn{
+    flex:1; min-width:160px; background:#142c52; color:#e9eef7; border:1px solid #2a4a80;
+    font-family:var(--mono); font-size:12px; letter-spacing:1px; text-transform:uppercase;
+    padding:10px 12px; border-radius:3px; cursor:pointer;
+  }
+  .excel-btn:hover{ background:#1c3a6b; border-color:var(--orange); }
+  .excel-msg{
+    font-family:var(--mono); font-size:11.5px; color:var(--green-ok); min-height:14px; margin-bottom:8px;
+  }
+  .excel-msg.err{ color:var(--orange-dark); }
+  .records-search{
+    width:100%; font-family:var(--mono); font-size:13px; padding:9px 10px;
+    border:1px solid var(--line); border-radius:3px; background:#fffdf8; color:var(--ink);
+    margin-bottom:10px;
+  }
+  .records-search:focus{ outline:2px solid var(--orange); outline-offset:1px; }
+  .records-list{ max-height:260px; overflow-y:auto; border:1px solid var(--line); border-radius:3px; background:#fffdf8; }
+  .rec-item{
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+    padding:8px 10px; border-bottom:1px solid #e6dcc2; cursor:pointer; font-family:var(--mono); font-size:12px;
+  }
+  .rec-item:last-child{ border-bottom:none; }
+  .rec-item:hover{ background:#f1e9d3; }
+  .rec-item .rec-h{ font-weight:700; color:var(--orange-dark); min-width:38px; }
+  .rec-item .rec-d{ color:#5c5340; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rec-item .rec-tag{
+    font-size:9.5px; letter-spacing:1px; text-transform:uppercase; color:#8a7a52;
+    border:1px solid var(--line); padding:2px 6px; border-radius:2px;
+  }
+  .rec-empty{ padding:16px; text-align:center; color:#a08f6a; font-family:var(--mono); font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>&#9635; PIONEER GROUP</h1>
+    <div class="sub">Hanger Details &middot; QR Tag Generator</div>
+  </header>
+
+  <div class="status-bar" id="statusBar">Loading saved data&hellip;</div>
+
+  <div class="grid">
+
+    <!-- FORM PANEL -->
+    <div class="panel">
+      <div class="panel-head">
+        <span>Field Entry</span>
+        <span id="fieldCount">5 fields</span>
+      </div>
+      <div class="panel-body">
+
+        <div class="lookup-row">
+          <input type="text" id="lookupInput" placeholder="Type Hanger No and press Enter">
+          <button class="lookup-btn" id="lookupBtn" type="button">Find</button>
+        </div>
+        <div class="lookup-hint" id="lookupHint">Existing hangers load automatically. New ones start blank.</div>
+
+        <div id="fieldsContainer"></div>
+
+        <button class="add-btn" id="addFieldBtn" type="button">+ Add New Field</button>
+
+        <div class="action-row">
+          <button class="gen-btn" id="genBtn" type="button">Save &amp; Generate QR</button>
+          <button class="reset-btn" id="resetBtn" type="button">Reset</button>
+        </div>
+        <div class="save-msg" id="saveMsg"></div>
+      </div>
+    </div>
+
+    <!-- PREVIEW PANEL -->
+    <div class="panel">
+      <div class="panel-head">
+        <span>Tag Preview</span>
+        <span>Live</span>
+      </div>
+      <div class="panel-body">
+        <div class="tag-stage">
+          <div class="tag" id="tagCard">
+            <div class="string"></div>
+            <div class="brand">Hang Tag &middot; QR Code</div>
+            <div class="qr-holder" id="qrHolder">
+              <div class="qr-placeholder">Enter Hanger No and<br>click "Save &amp; Generate QR"</div>
+            </div>
+            <div class="tag-data" id="tagData"></div>
+            <div class="tag-footer">SCAN FOR DETAILS</div>
+          </div>
+        </div>
+        <div class="dl-row">
+          <button class="dl-btn" id="dlBtn" type="button">&#8681; Download PNG</button>
+          <button class="dl-btn" id="printBtn" type="button">&#128424; Print Tag</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="printArea"></div>
+
+  <!-- RECORDS BROWSER -->
+  <div class="panel records-panel">
+    <div class="panel-head">
+      <span>All Records</span>
+      <span id="recCount">0</span>
+    </div>
+    <div class="panel-body">
+      <div class="excel-row">
+        <button class="excel-btn" id="exportBtn" type="button">&#8681; Export to Excel</button>
+        <button class="excel-btn" id="importBtn" type="button">&#8593; Update from Excel</button>
+        <input type="file" id="importFile" accept=".xlsx,.xls,.csv" style="display:none;">
+      </div>
+      <div class="excel-msg" id="excelMsg"></div>
+      <input type="text" class="records-search" id="recSearch" placeholder="Search by Hanger No or Design No...">
+      <div class="records-list" id="recList"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ---- Embedded base data (from your uploaded sheet) ----
+const BASE_DATA = [{"Hanger No": "1", "Design No": "PEL716", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "2", "Design No": "PE0539", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "3", "Design No": "PE0714", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "4", "Design No": "PE0662", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "5", "Design No": "J2215", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "6", "Design No": "PE0536", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "7", "Design No": "PE0532", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "8", "Design No": "PE0528", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "9", "Design No": "PE0687", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "10", "Design No": "53176", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "11", "Design No": "70317", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "12", "Design No": "70324", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "13", "Design No": "70333", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "14", "Design No": "70313", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "15", "Design No": "J2125", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "16", "Design No": "70319", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "17", "Design No": "J2155", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "18", "Design No": "J2153", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "19", "Design No": "59316", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "20", "Design No": "70336", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "21", "Design No": "70315", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "22", "Design No": "J2148", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "23", "Design No": "53175", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "24", "Design No": "57410", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "25", "Design No": "57411", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "26", "Design No": "57413", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "27", "Design No": "58587", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "28", "Design No": "58589", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "29", "Design No": "58583", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "30", "Design No": "J2125", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "31", "Design No": "58595", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "32", "Design No": "PE1006", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "33", "Design No": "PE1065", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "34", "Design No": "PE1058", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "35", "Design No": "PE1064", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "36", "Design No": "PE1067", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "37", "Design No": "PE1061", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "38", "Design No": "PE1059", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "39", "Design No": "ASP8486-HDM002", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "40", "Design No": "ASP4558", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "41", "Design No": "ASP8115", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "42", "Design No": "ASP8366", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "43", "Design No": "ASP4127", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "44", "Design No": "PE1079", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "45", "Design No": "PE1070A", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "46", "Design No": "PE1071", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "47", "Design No": "PE1002A", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "48", "Design No": "PE1017A", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "49", "Design No": "PE1042A", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "50", "Design No": "PE1032A", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "51", "Design No": "70323", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "52", "Design No": "PE1024A", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "53", "Design No": "J2114", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "54", "Design No": "PE1035A", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "55", "Design No": "45632-8", "Emb Width": "48\"-49\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "56", "Design No": "12292-12", "Emb Width": "48\"-49\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "57", "Design No": "12165-8", "Emb Width": "48\"-49\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "58", "Design No": "19111-12", "Emb Width": "48\"-49\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "59", "Design No": "19116-12", "Emb Width": "48\"-49\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "60", "Design No": "19107-12", "Emb Width": "48\"-49\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "61", "Design No": "55745 (Print no-N)", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "62", "Design No": "55745 (Print no-M)", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "63", "Design No": "55745 (Print no-J)", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "64", "Design No": "55745 (Print no-L)", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "65", "Design No": "722308-12/HDL0016", "Emb Width": "56\"-57\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "66", "Design No": "722308-12/HDL0017", "Emb Width": "56\"-57\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "67", "Design No": "72311-12/HDL0018", "Emb Width": "56\"-57\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "68", "Design No": "72311-12/HDL0019", "Emb Width": "56\"-57\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "69", "Design No": "PH1004", "Emb Width": "42\"-43\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "70", "Design No": "72281-4", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "71", "Design No": "72466-4", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "72", "Design No": "72465-4", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "73", "Design No": "72464-4", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "74", "Design No": "72463-4", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "75", "Design No": "72285-4", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "76", "Design No": "72283-4", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "77", "Design No": "72287-4", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "78", "Design No": "72288-4", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "79", "Design No": "72469-4", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "80", "Design No": "72471-4", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "81", "Design No": "72470-4", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "82", "Design No": "72468-4", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "83", "Design No": "72290-4", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "84", "Design No": "72467-4", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "85", "Design No": "PE1016A", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "86", "Design No": "PE1010A", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "87", "Design No": "PE1013A", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "88", "Design No": "PE1011A", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "89", "Design No": "PE1017A", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "90", "Design No": "PE1001A", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "91", "Design No": "57413", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "92", "Design No": "57415", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "93", "Design No": "70320", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "94", "Design No": "70310", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "95", "Design No": "70314", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "96", "Design No": "70318", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "97", "Design No": "J2154", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "98", "Design No": "J2157", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "99", "Design No": "70329", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "100", "Design No": "PE0534", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "101", "Design No": "60740-20", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "102", "Design No": "49989-8", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "103", "Design No": "43123-12", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "104", "Design No": "49905-16", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "105", "Design No": "49953-8", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "106", "Design No": "49985-8", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "107", "Design No": "40516-16", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "108", "Design No": "70828-12", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "109", "Design No": "7030-16", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "110", "Design No": "70352-24", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "111", "Design No": "70825-12", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "112", "Design No": "70826-12", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "113", "Design No": "70822-16", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "114", "Design No": "55397-24", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "115", "Design No": "53601-12", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "116", "Design No": "45320-12", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "117", "Design No": "ASP9694", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "118", "Design No": "45341-20", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "119", "Design No": "46018-8", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "120", "Design No": "ASP9620", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "121", "Design No": "45353-16", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "122", "Design No": "53612-12", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "123", "Design No": "70851", "Emb Width": "51\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "124", "Design No": "7193", "Emb Width": "51\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "125", "Design No": "26502", "Emb Width": "51\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "126", "Design No": "50627-4", "Emb Width": "51\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "127", "Design No": "NO3-40094-8", "Emb Width": "51\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "128", "Design No": "VS-08", "Emb Width": "51\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "129", "Design No": "45632", "Emb Width": "51\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "130", "Design No": "PH1012", "Emb Width": "42\"-43\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "131", "Design No": "PH1011", "Emb Width": "42\"-43\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "132", "Design No": "PH1005", "Emb Width": "42\"-43\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "133", "Design No": "15934-16", "Emb Width": "50\"-51\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "134", "Design No": "15936-16", "Emb Width": "50\"-51\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "135", "Design No": "16323-8A", "Emb Width": "50\"-51\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "136", "Design No": "16323-8B", "Emb Width": "50\"-51\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "137", "Design No": "16323-8C", "Emb Width": "50\"-51\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "138", "Design No": "50291-12", "Emb Width": "50\"-51\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "139", "Design No": "50751-16", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "140", "Design No": "50293-12", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "141", "Design No": "50294-12", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "142", "Design No": "50202-12", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "143", "Design No": "50287-12", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "144", "Design No": "50286-12", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "145", "Design No": "50281-12", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "146", "Design No": "50216-12", "Emb Width": "52\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "147", "Design No": "50973-20", "Emb Width": "51\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% lyocell"}, {"Hanger No": "148", "Design No": "6931-12", "Emb Width": "51\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% lyocell"}, {"Hanger No": "149", "Design No": "50128-20", "Emb Width": "51\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% lyocell"}, {"Hanger No": "150", "Design No": "50751-16", "Emb Width": "51\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% lyocell"}, {"Hanger No": "151", "Design No": "11552-8", "Emb Width": "51\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% lyocell"}, {"Hanger No": "152", "Design No": "11792-12", "Emb Width": "51\"-53\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "153", "Design No": "72748-8-BA", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "154", "Design No": "PE1014A-8", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "155", "Design No": "PE0687A-8", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "156", "Design No": "PE0657AA-4", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "157", "Design No": "72720-4-BA", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "158", "Design No": "13987-4-A", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "159", "Design No": "52106-4-A", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "160", "Design No": "9226-4-A", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "161", "Design No": "72747-8-BA", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "162", "Design No": "47515-4-BA-N", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "163", "Design No": "72719-8-FA", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "164", "Design No": "47510-4-BA", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "165", "Design No": "47513-A-4", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "166", "Design No": "47508-A-4", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "167", "Design No": "72722-4-BA-N", "Emb Width": "41\"-42\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "168", "Design No": "72723-4-BA-N", "Emb Width": "41\"-42\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "169", "Design No": "72646-4-N", "Emb Width": "41\"-42\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "170", "Design No": "72644-4-N", "Emb Width": "41\"-42\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "171", "Design No": "72641-4-N", "Emb Width": "41\"-42\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "172", "Design No": "72717-4-BA-N", "Emb Width": "41\"-42\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "173", "Design No": "72650-4-N", "Emb Width": "41\"-42\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "174", "Design No": "72649-4-N", "Emb Width": "41\"-42\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "175", "Design No": "72645-4-N", "Emb Width": "41\"-42\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "176", "Design No": "72647-4-N", "Emb Width": "41\"-42\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "177", "Design No": "72724-4-BA-N", "Emb Width": "41\"-42\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "178", "Design No": "72643-4-N", "Emb Width": "41\"-42\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "179", "Design No": "72642-4-N", "Emb Width": "41\"-42\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "180", "Design No": "72648-4-N", "Emb Width": "41\"-42\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "181", "Design No": "72718-4-BA-N", "Emb Width": "41\"-42\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "182", "Design No": "PE0963-A", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "183", "Design No": "PE0964-A", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "184", "Design No": "PE0965-A", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "185", "Design No": "PE0966-A", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "186", "Design No": "PE0967-A", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "187", "Design No": "PE0968-A", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "188", "Design No": "PE0969-A", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "189", "Design No": "PE0970-A", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "190", "Design No": "PE0971-A", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "191", "Design No": "PE0972-A", "Emb Width": "51\"-52\"", "Fabric Composition": "100% cotton", "Emb Yarn Composition": "100% cotton"}, {"Hanger No": "192", "Design No": "72246-12", "Emb Width": "51\"-52\"", "Fabric Composition": "100% Cotton", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "193", "Design No": "72243-12", "Emb Width": "51\"-52\"", "Fabric Composition": "100% Cotton", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "194", "Design No": "72238-8", "Emb Width": "51\"-52\"", "Fabric Composition": "100% Cotton", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "195", "Design No": "72234-8", "Emb Width": "51\"-52\"", "Fabric Composition": "100% Cotton", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "196", "Design No": "72245-12", "Emb Width": "51\"-52\"", "Fabric Composition": "100% Cotton", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "197", "Design No": "72244-12", "Emb Width": "51\"-52\"", "Fabric Composition": "100% Cotton", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "198", "Design No": "PEM9010", "Emb Width": "57\"-58\"", "Fabric Composition": "100% Cotton", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "199", "Design No": "PEM9011", "Emb Width": "57\"-58\"", "Fabric Composition": "100% Cotton", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "200", "Design No": "PEM9012", "Emb Width": "57\"-58\"", "Fabric Composition": "100% Cotton", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "201", "Design No": "PEM9009", "Emb Width": "57\"-58\"", "Fabric Composition": "100% Cotton", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "202", "Design No": "PEM9008", "Emb Width": "57\"-58\"", "Fabric Composition": "100% Cotton", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "203", "Design No": "PEM9013", "Emb Width": "57\"-58\"", "Fabric Composition": "100% Cotton", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "204", "Design No": "70832-32", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "205", "Design No": "70821-8", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "206", "Design No": "53603-12", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "207", "Design No": "54604-28", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "208", "Design No": "55397-24", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "209", "Design No": "60721-12", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "210", "Design No": "45356-24", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "211", "Design No": "PE0898", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "212", "Design No": "PE0892", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "213", "Design No": "PE0899", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "214", "Design No": "PE0893", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "215", "Design No": "PE0894", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "216", "Design No": "PE0897", "Emb Width": "52\"-53\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "217", "Design No": "PE0801A", "Emb Width": "41\"-42\"", "Fabric Composition": "100% Polyester", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "218", "Design No": "PE0804A", "Emb Width": "41\"-42\"", "Fabric Composition": "100% Polyester", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "219", "Design No": "PE0805A", "Emb Width": "41\"-42\"", "Fabric Composition": "100% Polyester", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "220", "Design No": "PE0803A", "Emb Width": "41\"-42\"", "Fabric Composition": "100% Polyester", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "221", "Design No": "PE0802A", "Emb Width": "41\"-42\"", "Fabric Composition": "100% Polyester", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "222", "Design No": "PE0800A", "Emb Width": "41\"-42\"", "Fabric Composition": "100% Polyester", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "223", "Design No": "PE0040A", "Emb Width": "41\"-42\"", "Fabric Composition": "100% Polyester", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "224", "Design No": "PE0056A", "Emb Width": "41\"-42\"", "Fabric Composition": "100% Polyester", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "225", "Design No": "PE0084", "Emb Width": "41\"-42\"", "Fabric Composition": "100% Polyester", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "226", "Design No": "PE00583", "Emb Width": "41\"-42\"", "Fabric Composition": "100% Polyester", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "227", "Design No": "PEM9006", "Emb Width": "40\"-41\"", "Fabric Composition": "Non Woven (Coding)", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "228", "Design No": "PEM9007", "Emb Width": "40\"-41\"", "Fabric Composition": "Non Woven (Coding)", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "229", "Design No": "PEM9005", "Emb Width": "40\"-41\"", "Fabric Composition": "Non Woven (Coding)", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "230", "Design No": "PEM9004", "Emb Width": "40\"-41\"", "Fabric Composition": "Non Woven (Coding)", "Emb Yarn Composition": "100% Cotton"}, {"Hanger No": "231", "Design No": "80012GP-8", "Emb Width": "51\"-52\"", "Fabric Composition": "Non Woven Fabric", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "232", "Design No": "80082GP-8", "Emb Width": "51\"-52\"", "Fabric Composition": "Non Woven Fabric", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "233", "Design No": "4005GPA-4", "Emb Width": "51\"-52\"", "Fabric Composition": "Non Woven Fabric", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "234", "Design No": "4067GPA-4", "Emb Width": "51\"-52\"", "Fabric Composition": "Non Woven Fabric", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "235", "Design No": "4032GPA-4", "Emb Width": "51\"-52\"", "Fabric Composition": "Non Woven Fabric", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "236", "Design No": "80096GP-8", "Emb Width": "51\"-52\"", "Fabric Composition": "Non Woven Fabric", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "237", "Design No": "4023GPA-4", "Emb Width": "51\"-52\"", "Fabric Composition": "Non Woven Fabric", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "238", "Design No": "4081GPA-4", "Emb Width": "51\"-52\"", "Fabric Composition": "Non Woven Fabric", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "239", "Design No": "4090GPA-4", "Emb Width": "51\"-52\"", "Fabric Composition": "Non Woven Fabric", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "240", "Design No": "80073GP-8", "Emb Width": "51\"-52\"", "Fabric Composition": "Non Woven Fabric", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "241", "Design No": "4028GPA-4", "Emb Width": "51\"-52\"", "Fabric Composition": "Non Woven Fabric", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "242", "Design No": "4063GPA-4", "Emb Width": "51\"-52\"", "Fabric Composition": "Non Woven Fabric", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "243", "Design No": "80063GP-8", "Emb Width": "51\"-52\"", "Fabric Composition": "Non Woven Fabric", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "244", "Design No": "80061GP-8", "Emb Width": "51\"-52\"", "Fabric Composition": "Non Woven Fabric", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "245", "Design No": "80052GP-8", "Emb Width": "51\"-52\"", "Fabric Composition": "Non Woven Fabric", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "246", "Design No": "80056GP-8", "Emb Width": "51\"-52\"", "Fabric Composition": "Non Woven Fabric", "Emb Yarn Composition": "100% Polyester"}, {"Hanger No": "247", "Design No": "57410", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "248", "Design No": "57413", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "249", "Design No": "J2124-148", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% polyester"}, {"Hanger No": "250", "Design No": "J2150-148", "Emb Width": "51\"-52\"", "Fabric Composition": "80% Polyester ,20% Cotton", "Emb Yarn Composition": "100% polyester"}]
+;
+
+const DEFAULT_KEYS = ["Hanger No","Design No","Emb Width","Fabric Composition","Emb Yarn Composition"];
+const OVERRIDES_KEY = "hanger-overrides";
+const CUSTOM_FIELDS_KEY = "custom-field-defs";
+
+let overrides = {};        // { hangerNo: {fieldKey: value, ...} }
+let customFieldDefs = [];  // extra field names beyond the 5 defaults
+let fields = [];           // current form state: [{key,value,locked,required}]
+let mergedIndex = {};       // hangerNo -> merged record (for search/lookup)
+
+const statusBar = document.getElementById('statusBar');
+const container = document.getElementById('fieldsContainer');
+const fieldCountEl = document.getElementById('fieldCount');
+const qrHolder = document.getElementById('qrHolder');
+const tagData = document.getElementById('tagData');
+const dlBtn = document.getElementById('dlBtn');
+const printBtn = document.getElementById('printBtn');
+const saveMsg = document.getElementById('saveMsg');
+const lookupInput = document.getElementById('lookupInput');
+const lookupHint = document.getElementById('lookupHint');
+const recList = document.getElementById('recList');
+const recSearch = document.getElementById('recSearch');
+const recCount = document.getElementById('recCount');
+
+function baseDefaultFields(){
+  return [
+    { key: "Hanger No", value: "", locked: true, required: true },
+    { key: "Design No", value: "", locked: false, required: false },
+    { key: "Emb Width", value: "", locked: false, required: false },
+    { key: "Fabric Composition", value: "", locked: false, required: false },
+    { key: "Emb Yarn Composition", value: "", locked: false, required: false }
+  ].concat(customFieldDefs.map(k => ({ key: k, value: "", locked: false, required: false })));
+}
+
+function buildMergedIndex(){
+  mergedIndex = {};
+  BASE_DATA.forEach(rec => {
+    mergedIndex[String(rec["Hanger No"]).trim()] = Object.assign({}, rec);
+  });
+  Object.keys(overrides).forEach(h => {
+    const existing = mergedIndex[h] || { "Hanger No": h };
+    mergedIndex[h] = Object.assign({}, existing, overrides[h]);
+  });
+}
+
+async function loadStorage(){
+  try{
+    const ov = await window.storage.get(OVERRIDES_KEY, false);
+    overrides = ov ? JSON.parse(ov.value) : {};
+  }catch(e){ overrides = {}; }
+  try{
+    const cf = await window.storage.get(CUSTOM_FIELDS_KEY, false);
+    customFieldDefs = cf ? JSON.parse(cf.value) : [];
+  }catch(e){ customFieldDefs = []; }
+  buildMergedIndex();
+  const addedCount = Object.keys(overrides).length;
+  statusBar.innerHTML = 'Loaded <b>' + BASE_DATA.length + '</b> hangers from your sheet' +
+    (addedCount ? ' + <b>' + addedCount + '</b> saved locally' : '') + '.';
+  fields = baseDefaultFields();
+  render();
+  renderRecordsList('');
+}
+
+function render(){
+  container.innerHTML = '';
+  fields.forEach(function(f, idx){
+    const row = document.createElement('div');
+    row.className = 'field-row' + (f.locked ? ' locked' : '');
+
+    const keyInput = document.createElement('input');
+    keyInput.className = 'key-input';
+    keyInput.value = f.key;
+    keyInput.placeholder = 'Field Name';
+    if(f.locked){ keyInput.disabled = true; }
+    keyInput.addEventListener('input', function(){ f.key = keyInput.value; });
+
+    const valInput = document.createElement('input');
+    valInput.className = 'val-input';
+    valInput.type = 'text';
+    valInput.value = f.value;
+    valInput.placeholder = f.required ? 'Hanger No (required)' : 'Enter value';
+    valInput.addEventListener('input', function(){ f.value = valInput.value; });
+    if(f.required){
+      valInput.addEventListener('keydown', function(e){
+        if(e.key === 'Enter'){ doLookup(valInput.value); }
+      });
+    }
+
+    row.appendChild(keyInput);
+    row.appendChild(valInput);
+
+    if(f.locked){
+      const lockSpan = document.createElement('span');
+      lockSpan.title = 'This field is required';
+      lockSpan.textContent = '\u2605';
+      lockSpan.style.color = '#a6410f';
+      lockSpan.style.fontSize = '13px';
+      lockSpan.style.textAlign = 'center';
+      row.appendChild(lockSpan);
+    } else {
+      const rmBtn = document.createElement('button');
+      rmBtn.className = 'rm-btn';
+      rmBtn.type = 'button';
+      rmBtn.textContent = '\u2715';
+      rmBtn.title = 'Remove field';
+      rmBtn.addEventListener('click', async function(){
+        const removedKey = f.key;
+        fields.splice(idx, 1);
+        render();
+        if(removedKey && customFieldDefs.includes(removedKey)){
+          customFieldDefs = customFieldDefs.filter(k => k !== removedKey);
+          try{ await window.storage.set(CUSTOM_FIELDS_KEY, JSON.stringify(customFieldDefs), false); }catch(e){}
+        }
+      });
+      row.appendChild(rmBtn);
+    }
+
+    container.appendChild(row);
+  });
+  fieldCountEl.textContent = fields.length + ' fields';
+}
+
+document.getElementById('addFieldBtn').addEventListener('click', async function(){
+  fields.push({ key: '', value: '', locked: false, required: false });
+  render();
+  const lastInput = container.querySelectorAll('.key-input');
+  lastInput[lastInput.length - 1].focus();
+});
+
+document.getElementById('resetBtn').addEventListener('click', function(){
+  fields = baseDefaultFields();
+  render();
+  qrHolder.innerHTML = '<div class="qr-placeholder">Enter Hanger No and<br>click "Save &amp; Generate QR"</div>';
+  tagData.innerHTML = '';
+  dlBtn.classList.remove('show');
+  printBtn.classList.remove('show');
+  saveMsg.textContent = '';
+  lookupInput.value = '';
+  lookupHint.textContent = 'Existing hangers load automatically. New ones start blank.';
+  lookupHint.className = 'lookup-hint';
+});
+
+function renderQR(payload){
+  qrHolder.innerHTML = '';
+  const qrBox = document.createElement('div');
+  qrHolder.appendChild(qrBox);
+  new QRCode(qrBox, {
+    text: payload.text, width: 150, height: 150,
+    colorDark: "#241f14", colorLight: "#fffdf7", correctLevel: QRCode.CorrectLevel.M
+  });
+
+  tagData.innerHTML = '';
+  payload.rows.forEach(function(r){
+    const rowEl = document.createElement('div');
+    rowEl.className = 'row';
+    const kEl = document.createElement('span'); kEl.className = 'k'; kEl.textContent = r.k;
+    const vEl = document.createElement('span'); vEl.className = 'v'; vEl.textContent = r.v;
+    rowEl.appendChild(kEl); rowEl.appendChild(vEl);
+    tagData.appendChild(rowEl);
+  });
+
+  dlBtn.classList.remove('show');
+  printBtn.classList.remove('show');
+  setTimeout(function(){
+    dlBtn.classList.add('show');
+    printBtn.classList.add('show');
+  }, 150);
+}
+
+function doLookup(hangerNo){
+  hangerNo = (hangerNo || '').trim();
+  if(!hangerNo){ return; }
+  const rec = mergedIndex[hangerNo];
+
+  const preservedCustom = fields.filter(f => !f.locked && !DEFAULT_KEYS.includes(f.key) && !customFieldDefs.includes(f.key));
+  fields = baseDefaultFields();
+  fields[0].value = hangerNo;
+
+  if(rec){
+    fields.forEach(f => {
+      if(rec[f.key] !== undefined){ f.value = String(rec[f.key]); }
+    });
+    Object.keys(rec).forEach(k => {
+      if(!DEFAULT_KEYS.includes(k) && !customFieldDefs.includes(k)){
+        fields.push({ key: k, value: String(rec[k]), locked: false, required: false });
+      }
+    });
+    lookupHint.textContent = 'Hanger #' + hangerNo + ' found — QR shown below. Edit and save to update.';
+    lookupHint.className = 'lookup-hint found';
+    render();
+    renderQR(buildPayload());
+    saveMsg.textContent = '';
+  } else {
+    preservedCustom.forEach(f => fields.push(f));
+    lookupHint.textContent = 'Hanger #' + hangerNo + ' is new — fill the fields and save it.';
+    lookupHint.className = 'lookup-hint new';
+    render();
+    qrHolder.innerHTML = '<div class="qr-placeholder">Hanger #' + hangerNo + ' is new.<br>Fill fields and click "Save &amp; Generate QR"</div>';
+    tagData.innerHTML = '';
+    dlBtn.classList.remove('show');
+    printBtn.classList.remove('show');
+  }
+}
+
+document.getElementById('lookupBtn').addEventListener('click', function(){ doLookup(lookupInput.value); });
+lookupInput.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ doLookup(lookupInput.value); } });
+
+function buildPayload(){
+  const lines = [];
+  const displayRows = [];
+  const rowObj = {};
+  fields.forEach(function(f){
+    const k = (f.key || '').trim();
+    const v = (f.value || '').trim();
+    if(k && v){
+      lines.push(k + ': ' + v);
+      displayRows.push({k:k, v:v});
+      rowObj[k] = v;
+    }
+  });
+  return { text: lines.join('\n'), rows: displayRows, obj: rowObj };
+}
+
+document.getElementById('genBtn').addEventListener('click', async function(){
+  const hangerField = fields.find(f => f.required);
+  const hangerNo = hangerField ? hangerField.value.trim() : '';
+  if(!hangerNo){
+    document.querySelectorAll('.val-input')[0].focus();
+    saveMsg.textContent = 'Hanger No is required. Please fill it first.';
+    saveMsg.className = 'save-msg err';
+    return;
+  }
+
+  const payload = buildPayload();
+  if(!payload.text){
+    saveMsg.textContent = 'Please fill at least one field.';
+    saveMsg.className = 'save-msg err';
+    return;
+  }
+
+  // Persist: save this hanger's data as an override, and remember any new custom field names.
+  try{
+    overrides[hangerNo] = payload.obj;
+    await window.storage.set(OVERRIDES_KEY, JSON.stringify(overrides), false);
+
+    let newCustom = false;
+    fields.forEach(f => {
+      const k = (f.key || '').trim();
+      if(k && !DEFAULT_KEYS.includes(k) && !customFieldDefs.includes(k)){
+        customFieldDefs.push(k);
+        newCustom = true;
+      }
+    });
+    if(newCustom){
+      await window.storage.set(CUSTOM_FIELDS_KEY, JSON.stringify(customFieldDefs), false);
+    }
+    buildMergedIndex();
+    renderRecordsList(recSearch.value);
+    saveMsg.textContent = 'Saved. Hanger #' + hangerNo + ' will be here next time too.';
+    saveMsg.className = 'save-msg';
+  }catch(e){
+    saveMsg.textContent = 'Could not save — QR generated below anyway.';
+    saveMsg.className = 'save-msg err';
+  }
+
+  renderQR(payload);
+});
+
+dlBtn.addEventListener('click', function(){
+  const canvas = qrHolder.querySelector('canvas');
+  const img = qrHolder.querySelector('img');
+  const hangerField = fields.find(f => f.required);
+  const name = 'QR_' + (hangerField && hangerField.value.trim() ? hangerField.value.trim() : 'hanger') + '.png';
+  let dataUrl = null;
+  if(canvas){ dataUrl = canvas.toDataURL('image/png'); }
+  else if(img){ dataUrl = img.src; }
+  if(!dataUrl){ return; }
+  const a = document.createElement('a');
+  a.href = dataUrl; a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+});
+
+document.getElementById('printBtn').addEventListener('click', function(){
+  const tagCard = document.getElementById('tagCard');
+  const printArea = document.getElementById('printArea');
+  if(!tagCard || !qrHolder.querySelector('canvas, img')){ return; }
+  printArea.innerHTML = '';
+  printArea.appendChild(tagCard.cloneNode(true));
+  window.print();
+});
+
+
+function renderRecordsList(filterText){
+  const q = (filterText || '').trim().toLowerCase();
+  const hangerNos = Object.keys(mergedIndex).sort((a,b) => {
+    const na = parseFloat(a), nb = parseFloat(b);
+    if(!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.localeCompare(b);
+  });
+  const filtered = hangerNos.filter(h => {
+    if(!q) return true;
+    const rec = mergedIndex[h];
+    return h.toLowerCase().includes(q) ||
+      (rec["Design No"] || '').toLowerCase().includes(q);
+  });
+  recCount.textContent = filtered.length + ' / ' + hangerNos.length;
+  recList.innerHTML = '';
+  if(filtered.length === 0){
+    recList.innerHTML = '<div class="rec-empty">No matching hangers.</div>';
+    return;
+  }
+  filtered.slice(0, 300).forEach(h => {
+    const rec = mergedIndex[h];
+    const item = document.createElement('div');
+    item.className = 'rec-item';
+    const isNewLocal = overrides.hasOwnProperty(h) && !BASE_DATA.some(b => String(b["Hanger No"]) === h);
+    item.innerHTML =
+      '<span class="rec-h">#' + h + '</span>' +
+      '<span class="rec-d">' + (rec["Design No"] || '') + ' &middot; ' + (rec["Emb Width"] || '') + '</span>' +
+      (isNewLocal ? '<span class="rec-tag">saved</span>' : '<span class="rec-tag">sheet</span>');
+    item.addEventListener('click', function(){
+      lookupInput.value = h;
+      doLookup(h);
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+    recList.appendChild(item);
+  });
+}
+
+recSearch.addEventListener('input', function(){ renderRecordsList(recSearch.value); });
+
+// ---- Excel Export ----
+document.getElementById('exportBtn').addEventListener('click', function(){
+  const excelMsg = document.getElementById('excelMsg');
+  try{
+    const allKeys = DEFAULT_KEYS.concat(customFieldDefs);
+    const hangerNos = Object.keys(mergedIndex).sort((a,b) => {
+      const na = parseFloat(a), nb = parseFloat(b);
+      if(!isNaN(na) && !isNaN(nb)) return na - nb;
+      return a.localeCompare(b);
+    });
+    const rows = hangerNos.map(h => {
+      const rec = mergedIndex[h];
+      const row = {};
+      allKeys.forEach(k => { row[k] = rec[k] !== undefined ? rec[k] : ''; });
+      return row;
+    });
+    const ws = XLSX.utils.json_to_sheet(rows, { header: allKeys });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Hanger Details');
+    XLSX.writeFile(wb, 'Pioneer_Group_Hanger_Details.xlsx');
+    excelMsg.textContent = 'Exported ' + rows.length + ' hangers to Excel.';
+    excelMsg.className = 'excel-msg';
+  }catch(e){
+    excelMsg.textContent = 'Export failed: ' + e.message;
+    excelMsg.className = 'excel-msg err';
+  }
+});
+
+// ---- Excel Import (update data via Excel) ----
+const importFile = document.getElementById('importFile');
+document.getElementById('importBtn').addEventListener('click', function(){ importFile.click(); });
+
+importFile.addEventListener('change', async function(e){
+  const excelMsg = document.getElementById('excelMsg');
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+    if(!rows.length){
+      excelMsg.textContent = 'The Excel file has no rows.';
+      excelMsg.className = 'excel-msg err';
+      return;
+    }
+
+    const hangerKeyName = Object.keys(rows[0]).find(k => k.trim().toLowerCase() === 'hanger no');
+    if(!hangerKeyName){
+      excelMsg.textContent = 'Could not find a "Hanger No" column in the file.';
+      excelMsg.className = 'excel-msg err';
+      return;
+    }
+
+    let updated = 0, added = 0, newCols = [];
+    rows.forEach(row => {
+      const hangerNo = String(row[hangerKeyName]).trim();
+      if(!hangerNo) return;
+      const rec = {};
+      Object.keys(row).forEach(col => {
+        const trimmedCol = col.trim();
+        const val = String(row[col]).trim();
+        if(val === '') return;
+        rec[trimmedCol === hangerKeyName.trim() ? 'Hanger No' : trimmedCol] = val;
+        if(!DEFAULT_KEYS.includes(trimmedCol) && !customFieldDefs.includes(trimmedCol) && !newCols.includes(trimmedCol)){
+          newCols.push(trimmedCol);
+        }
+      });
+      if(overrides.hasOwnProperty(hangerNo) || mergedIndex[hangerNo]){ updated++; } else { added++; }
+      overrides[hangerNo] = Object.assign({}, mergedIndex[hangerNo] || {}, overrides[hangerNo] || {}, rec);
+    });
+
+    if(newCols.length){ customFieldDefs = customFieldDefs.concat(newCols); }
+
+    await window.storage.set(OVERRIDES_KEY, JSON.stringify(overrides), false);
+    await window.storage.set(CUSTOM_FIELDS_KEY, JSON.stringify(customFieldDefs), false);
+
+    buildMergedIndex();
+    fields = baseDefaultFields();
+    render();
+    renderRecordsList(recSearch.value);
+
+    excelMsg.textContent = 'Updated from Excel: ' + updated + ' existing, ' + added + ' new hangers saved.';
+    excelMsg.className = 'excel-msg';
+    statusBar.innerHTML = 'Loaded <b>' + BASE_DATA.length + '</b> hangers from your sheet + <b>' +
+      Object.keys(overrides).length + '</b> saved locally.';
+  }catch(err){
+    excelMsg.textContent = 'Import failed: ' + err.message;
+    excelMsg.className = 'excel-msg err';
+  }
+  importFile.value = '';
+});
+
+loadStorage();
+</script>
+<script>
+(function(){
+const dbName='HangTagDB';let dbp=new Promise((res,rej)=>{let r=indexedDB.open(dbName,1);r.onupgradeneeded=e=>e.target.result.createObjectStore('records',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});
+window.storage={async set(k,v){let db=await dbp;return new Promise((res,rej)=>{let tx=db.transaction('records','readwrite');tx.objectStore('records').put({id:k,value:v});tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});},async get(k){let db=await dbp;return new Promise((res,rej)=>{let rq=db.transaction('records').objectStore('records').get(k);rq.onsuccess=()=>res(rq.result&&rq.result.value);rq.onerror=()=>rej(rq.error);});}};
+})();
+</script>
+<script>
+(function(){
+ const saveBtn=document.querySelector('button');
+ if(!saveBtn) return;
+ const b=document.createElement('button');
+ b.id='deleteEntryBtn';
+ b.textContent='🗑 Delete Entry';
+ b.style.marginLeft='10px';
+ saveBtn.parentNode.insertBefore(b, saveBtn.nextSibling);
+ b.onclick=function(){
+   const no=prompt("Enter Hanger No to delete:");
+   if(!no) return;
+   try{
+     if(window.storage && typeof window.storage.delete==="function"){
+        window.storage.delete(no).then(()=>alert("Deleted successfully")).catch(e=>alert("Delete failed: "+e));
+     }else{
+        localStorage.removeItem(no);
+        alert("Delete attempted.");
+     }
+   }catch(e){alert("Delete failed: "+e);}
+ };
+})();
+</script></body>
+</html>
