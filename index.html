@@ -801,8 +801,31 @@ Thanks`;
    }catch(e){alert("Delete failed: "+e);}
 <script>
 }
+<script>
+function sendToEnquiry() {
+  const hangerNo = document.getElementById("hanger")?.value || "";
+  const design   = document.getElementById("design")?.value || "";
+  const width    = document.getElementById("width")?.value || "";
+  const fabric   = document.getElementById("fabric")?.value || "";
+  const yarn     = document.getElementById("yarn")?.value || "";
+
+  const toEmail = "export@pelhakhoba.com";
+  const subject = encodeURIComponent("Hanger Enquiry - " + hangerNo);
+
+  const body = encodeURIComponent(
+`Hello Team,
+
+Hanger Details:
+Hanger No: ${hangerNo}
+Design No: ${design}
+Emb Width: ${width}
+Fabric: ${fabric}
+Yarn: ${yarn}
+
+Regards`
+  );
+
+  window.location.href =
+    `mailto:${toEmail}?subject=${subject}&body=${body}`;
+}
 </script>
- };
-})();
-</script></body>
-</html>
