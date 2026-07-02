@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pioneer Group - Hanger QR</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{margin:0;font-family:Arial;background:#0b2345}
+.header{color:#fff;padding:18px 30px;font-weight:700;letter-spacing:3px}
+.main{display:flex;gap:30px;padding:30px}
+.panel{background:#f7f1e3;padding:20px;border-radius:6px;flex:1}
+h3{margin-top:0;font-size:13px;letter-spacing:2px}
+label{font-size:11px;letter-spacing:1px}
+input{width:100%;padding:8px;margin:4px 0 10px;border:1px solid #c9b37e;background:#fffdf7}
+button{padding:9px 16px;font-size:12px;letter-spacing:1px;border:none;cursor:pointer}
+.btn-find{background:#111;color:#fff}
+.btn-del{background:#7b0000;color:#fff;margin-left:6px}
+.btn-save{background:#d3541c;color:#fff;width:100%;margin-top:10px}
+.tag{width:260px;margin:auto;background:#efe3c5;padding:14px;border-radius:6px;text-align:center}
+.tag h4{margin:0 0 8px;font-size:11px;letter-spacing:2px}
+.row{display:flex;justify-content:space-between;font-size:11px;border-bottom:1px dotted #b9a36a;padding:3px 0}
+#qr{margin:10px 0}
+.msg{font-size:12px;margin-top:8px}
+</style>
+</head>
+
+<body>
+<div class="header">PIONEER GROUP</div>
+
+<div class="main">
+
+<div class="panel">
+<h3>FIELD ENTRY</h3>
+
+<input id="searchNo" placeholder="Enter Hanger No">
+<button class="btn-find" onclick="findHanger()">FIND</button>
+<button class="btn-del" onclick="deleteHanger()">Delete Entry</button>
+
+<div id="status" class="msg"></div>
+
+<label>HANGER NO</label>
+<input id="hanger">
+
+<label>DESIGN NO</label>
+<input id="design">
+
+<label>EMB WIDTH</label>
+<input id="width">
+
+<label>FABRIC COMPOSITION</label>
+<input id="fabric">
+
+<label>EMB YARN COMPOSITION</label>
+<input id="yarn">
+
+<button class="btn-save" onclick="saveHanger()">SAVE & GENERATE QR</button>
+</div>
+
+<div class="panel">
+<h3>TAG PREVIEW</h3>
+<div class="tag">
+<h4>HANG TAG — QR CODE</h4>
+<div id="qr"></div>
+<div class="row"><span>HANGER NO</span><span id="p_hanger"></span></div>
+<div class="row"><span>DESIGN NO</span><span id="p_design"></span></div>
+<div class="row"><span>EMB WIDTH</span><span id="p_width"></span></div>
+<div class="row"><span>FABRIC</span><span id="p_fabric"></span></div>
+<div class="row"><span>YARN</span><span id="p_yarn"></span></div>
+</div>
+</div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<script>
+let currentHanger="";
+
+function getData(){return JSON.parse(localStorage.getItem("hangerData")||"{}");}
+function setData(d){localStorage.setItem("hangerData",JSON.stringify(d));}
+
+function saveHanger(){
+  const h=hanger.value.trim();
+  if(!h){alert("Hanger No required");return;}
+  const d=getData();
+  d[h]={hanger:h,design:design.value,width:width.value,fabric:fabric.value,yarn:yarn.value};
+  setData(d);
+  currentHanger=h;
+  status.textContent="Saved successfully";
+  showTag(d[h]);
+}
+
+function findHanger(){
+  const h=searchNo.value.trim();
+  if(!h)return;
+  const d=getData();
+  if(!d[h]){status.textContent="Hanger not found";return;}
+  const o=d[h];
+  hanger.value=o.hanger;design.value=o.design;width.value=o.width;
+  fabric.value=o.fabric;yarn.value=o.yarn;
+  currentHanger=h;
+  status.textContent="Hanger #"+h+" found";
+  showTag(o);
+}
+
+function deleteHanger(){
+  if(!currentHanger){alert("Find hanger first");return;}
+  if(!confirm("Delete hanger "+currentHanger+" ?"))return;
+  const d=getData();
+  delete d[currentHanger];
+  setData(d);
+  currentHanger="";
+  status.textContent="Deleted successfully";
+  qr.innerHTML="";
+}
+
+function showTag(o){
+  qr.innerHTML="";
+  new QRCode("qr",{text:
+    "Hanger:"+o.hanger+"\nDesign:"+o.design+"\nWidth:"+o.width+"\nFabric:"+o.fabric+"\nYarn:"+o.yarn,
+    width:200,height:200
+  });
+  p_hanger.textContent=o.hanger;
+  p_design.textContent=o.design;
+  p_width.textContent=o.width;
+  p_fabric.textContent=o.fabric;
+  p_yarn.textContent=o.yarn;
+}
+</script>
+
+</body>
+</html>
