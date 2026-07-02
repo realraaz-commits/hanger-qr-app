@@ -770,6 +770,38 @@ window.storage={async set(k,v){let db=await dbp;return new Promise((res,rej)=>{l
         alert("Delete attempted.");
      }
    }catch(e){alert("Delete failed: "+e);}
+<script>
+function sendToEnquiry(){
+  const hangerNo = document.getElementById("hanger")?.value || "";
+  const design   = document.getElementById("design")?.value || "";
+  const width    = document.getElementById("width")?.value || "";
+  const fabric   = document.getElementById("fabric")?.value || "";
+  const yarn     = document.getElementById("yarn")?.value || "";
+
+  const toEmail = "export@pelhakoba.com";
+  const subject = "Hanger Enquiry - " + hangerNo;
+
+  const body =
+`Hello Team,
+
+Hanger Details:
+
+Hanger No: ${hangerNo}
+Design No: ${design}
+Emb Width: ${width}
+Fabric: ${fabric}
+Yarn: ${yarn}
+
+Please contact us.
+
+Thanks`;
+
+  window.location.href =
+    "mailto:" + toEmail +
+    "?subject=" + encodeURIComponent(subject) +
+    "&body=" + encodeURIComponent(body);
+}
+</script>
  };
 })();
 </script></body>
