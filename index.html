@@ -768,10 +768,7 @@ window.storage={async set(k,v){let db=await dbp;return new Promise((res,rej)=>{l
      }else{
         localStorage.removeItem(no);
         alert("Delete attempted.");
-     }
-   }catch(e){alert("Delete failed: "+e);}
-<script>
-function sendToEnquiry(){
+       function sendToEnquiry(){
   const hangerNo = document.getElementById("hanger")?.value || "";
   const design   = document.getElementById("design")?.value || "";
   const width    = document.getElementById("width")?.value || "";
@@ -800,6 +797,9 @@ Thanks`;
     "mailto:" + toEmail +
     "?subject=" + encodeURIComponent(subject) +
     "&body=" + encodeURIComponent(body);
+     }
+   }catch(e){alert("Delete failed: "+e);}
+<script>
 }
 </script>
  };
